@@ -113,3 +113,4 @@ if __name__ == "__main__":
         for file, error in errors.items():
             w.writerow([file, error])
         f.close()
+
