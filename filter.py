@@ -20,63 +20,63 @@ def calculate_quake_time(data,params):
     detections = vel > std_dev*params["threshold"]
     first_detection = time[detections.idxmax()]
 
-    #return first_detection
-    last_detection = time[detections[::-1].idxmax()]
-    offset = (last_detection - first_detection)/params["offset_multiplier"]
+    return first_detection
+    # last_detection = time[detections[::-1].idxmax()]
+    # offset = (last_detection - first_detection)/params["offset_multiplier"]
 
-    true_values = []
-    for i, d in enumerate(detections):
-        if d:
-            true_values.append(i)
+    # true_values = []
+    # for i, d in enumerate(detections):
+    #     if d:
+    #         true_values.append(i)
 
  
-    curr_cluster = [true_values[0]]
-    clusters = [[true_values[0]]]
+    # curr_cluster = [true_values[0]]
+    # clusters = [[true_values[0]]]
 
-    for i in true_values:
-        if i - curr_cluster[-1] > params["cluster_threshold"]:
-            clusters.append(curr_cluster)
-            curr_cluster = []
+    # for i in true_values:
+    #     if i - curr_cluster[-1] > params["cluster_threshold"]:
+    #         clusters.append(curr_cluster)
+    #         curr_cluster = []
         
-        curr_cluster.append(i)
+    #     curr_cluster.append(i)
 
-    largest_cluster = max(clusters)
-    print(len(clusters))
-    return time[largest_cluster[0]]
-
-
-
-params = {"threshold":10, "window_size":1, "offset_multiplier":10, "cluster_threshold":500}
-data_folder = "data/lunar/training"
-test_data = pd.read_csv(f"{data_folder}/catalogs/apollo12_catalog_GradeA_final.csv")
-scores = {}
-detections = {}
-for file, time in zip(test_data["filename"],test_data["time_rel(sec)"]):
-    try:
-        data = pd.read_csv(f"{data_folder}/data/S12_GradeA/{file}.csv")
-        detections[file] = calculate_quake_time(data,params)
-        scores[file] = detections[file] - time
-        print(scores[file])
-    except FileNotFoundError:
-        continue
-    except KeyboardInterrupt:
-        break
-
-import csv
-f = open("final.csv", "w")
-w = csv.writer(f)
-w.writerow(["filename", "time_rel(sec)"])
-for file, time in detections.items():
-    w.writerow([file, time])
-f.close()
+    # largest_cluster = max(clusters)
+    # print(len(clusters))
+    # return time[largest_cluster[0]]
 
 
-f = open("scores","w")
-w = csv.writer(f)
-w.writerow(["filename","score"])
-for file, score in scores.items():
-    w.writerow([file, score])
-f.close()
+
+# params = {"threshold":10, "window_size":1, "offset_multiplier":10, "cluster_threshold":500}
+# data_folder = "data/lunar/training"
+# test_data = pd.read_csv(f"{data_folder}/catalogs/apollo12_catalog_GradeA_final.csv")
+# scores = {}
+# detections = {}
+# for file, time in zip(test_data["filename"],test_data["time_rel(sec)"]):
+#     try:
+#         data = pd.read_csv(f"{data_folder}/data/S12_GradeA/{file}.csv")
+#         detections[file] = calculate_quake_time(data,params)
+#         scores[file] = detections[file] - time
+#         print(scores[file])
+#     except FileNotFoundError:
+#         continue
+#     except KeyboardInterrupt:
+#         break
+
+# import csv
+# f = open("final.csv", "w")
+# w = csv.writer(f)
+# w.writerow(["filename", "time_rel(sec)"])
+# for file, time in detections.items():
+#     w.writerow([file, time])
+# f.close()
+
+
+# f = open("scores","w")
+# w = csv.writer(f)
+# w.writerow(["filename","score"])
+# for file, score in scores.items():
+#     w.writerow([file, score])
+# f.close()
 
 
 
@@ -91,13 +91,14 @@ import blackbox as bb
 
 
 def fun(x):
-    data_folder = "data/lunar/training"
-    test_data = pd.read_csv(f"{data_folder}/catalogs/apollo12_catalog_GradeA_final.csv")
+    params = {"threshold":x[0], "window_size":round(x[1])}
+    data_folder = "."
+    test_data = pd.read_csv(f"apollo12_catalog_GradeA_final.csv")
     scores = {}
     detections = {}
     for file, time in zip(test_data["filename"],test_data["time_rel(sec)"]):
         try:
-            data = pd.read_csv(f"{data_folder}/data/S12_GradeA/{file}.csv")
+            data = pd.read_csv(f"{data_folder}/{file}.csv")
             detections[file] = calculate_quake_time(data,params)
             scores[file] = detections[file] - time
             print(scores[file])
