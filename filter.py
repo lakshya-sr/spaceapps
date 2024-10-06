@@ -1,5 +1,5 @@
 import pandas as pd
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import math
 
 
@@ -16,11 +16,14 @@ def calculate_quake_time(data,params):
     time = data["time_rel(sec)"]
 
     mean = vel.mean()
-    std_dev = math.sqrt(((vel - mean)**2).mean())
-    detections = vel > std_dev*params["threshold"]
-    first_detection = time[detections.idxmax()]
+    std_dev = math.sqrt(((vel - mean)**2).mean()) # Standard Deviation
+    detections = vel > std_dev*params["threshold"] # filtered values
+    first_detection = time[detections.idxmax()] # Detected time
 
-    return first_detection
+    return first_detection - params["offset"]
+    
+    # Other approaches which did not work
+
     # last_detection = time[detections[::-1].idxmax()]
     # offset = (last_detection - first_detection)/params["offset_multiplier"]
 
@@ -46,72 +49,67 @@ def calculate_quake_time(data,params):
 
 
 
-# params = {"threshold":10, "window_size":1, "offset_multiplier":10, "cluster_threshold":500}
-# data_folder = "data/lunar/training"
-# test_data = pd.read_csv(f"{data_folder}/catalogs/apollo12_catalog_GradeA_final.csv")
-# scores = {}
-# detections = {}
-# for file, time in zip(test_data["filename"],test_data["time_rel(sec)"]):
-#     try:
-#         data = pd.read_csv(f"{data_folder}/data/S12_GradeA/{file}.csv")
-#         detections[file] = calculate_quake_time(data,params)
-#         scores[file] = detections[file] - time
-#         print(scores[file])
-#     except FileNotFoundError:
-#         continue
-#     except KeyboardInterrupt:
-#         break
-
-# import csv
-# f = open("final.csv", "w")
-# w = csv.writer(f)
-# w.writerow(["filename", "time_rel(sec)"])
-# for file, time in detections.items():
-#     w.writerow([file, time])
-# f.close()
-
-
-# f = open("scores","w")
-# w = csv.writer(f)
-# w.writerow(["filename","score"])
-# for file, score in scores.items():
-#     w.writerow([file, score])
-# f.close()
-
-
-
-"""
-data = pd.read_csv("data/lunar/training/data/S12_GradeA/xa.s12.00.mhz.1970-01-19HR00_evid00002.csv")
-plt.plot(calculate_quake_time(data,{"threshold":10}))
-plt.show()
-
-"""
-
-import blackbox as bb
-
-
-def fun(x):
-    params = {"threshold":x[0], "window_size":round(x[1])}
-    data_folder = "."
-    test_data = pd.read_csv(f"apollo12_catalog_GradeA_final.csv")
-    scores = {}
+def evaluate_files(catalog, data_folder, params):
+    test_data = pd.read_csv(catalog)
+    errors = {}
     detections = {}
     for file, time in zip(test_data["filename"],test_data["time_rel(sec)"]):
         try:
             data = pd.read_csv(f"{data_folder}/{file}.csv")
             detections[file] = calculate_quake_time(data,params)
-            scores[file] = detections[file] - time
-            print(scores[file])
+            errors[file] = detections[file] - time
+            print(errors[file])
         except FileNotFoundError:
             continue
         except KeyboardInterrupt:
             break
-    return rms(scores.values())
+    return errors, detections
 
+import blackbox as bb
 
+# Optimization function
+def fun(x):
+    params = {"threshold":x[0], "window_size":round(x[1]), "offset":x[2]}
+    data_folder = "dataset"
+    catalog_file = "apollo12_catalog_GradeA_final.csv"
+    errors = evaluate_files(catalog_file, data_folder, params)[0]
+    
+    return rms([v for v in errors.values() if v < 1000])
+
+# Parameter optimization
 if __name__ == "__main__":
-    domain = [[1, 20], [1, 1000]]
-    result = bb.minimize(f=fun, domain=domain, budget=20, batch=4)
+    import pickle
+    if input("Evaluate(e)/Optimize Parameters(o)? ") == "o":
+        domain = [[1, 20], [1, 1000], [0, 500]]
+        result = bb.minimize(f=fun, domain=domain, budget=32, batch=4)
 
-    print(result["best_x"])
-    print(result["best_f"])
+        best = {"threshold":result["best_x"][0], "window_size":round(result["best_x"][1]), "offset":result["best_x"][2]} 
+        print(best) # best parameters
+        f = open("best-params", "wb")
+        pickle.dump(best,f)
+        f.close()
+        print(result["best_f"])
+    else:
+        f = open("best-params", "rb")
+        params = pickle.load(f)
+        f.close()
+        catalog_file = "apollo12_catalog_GradeA_final.csv"
+        errors, detections = evaluate_files(catalog_file, "dataset", params)
+
+        # Data writing
+
+        import csv
+        f = open("detections.csv", "w")
+        w = csv.writer(f)
+        w.writerow(["filename", "time_rel(sec)"])
+        for file, time in detections.items():
+            w.writerow([file, time])
+        f.close()
+
+
+        f = open("errors.csv","w")
+        w = csv.writer(f)
+        w.writerow(["filename","error"])
+        for file, error in errors.items():
+            w.writerow([file, error])
+        f.close()
