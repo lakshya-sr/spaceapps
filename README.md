@@ -12,4 +12,4 @@ Run
 
 Choose whether to optimize parameters or evaluate detection on files.
 
-
+Warning: Optimization takes a lot of time. Please consider reducing ```budget``` on line 84
